@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دهکده نمدی سارا | دست‌سازه‌های نمدی و پنل مدیریت پست‌ها</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Vazirmatn Font -->
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Vazirmatn', 'sans-serif'],
+                    },
+                    colors: {
+                        felt: {
+                            pink: '#FF8FAB',
+                            rose: '#FB6F92',
+                            softBg: '#FFF0F5',
+                            cream: '#FFF9FB',
+                            purple: '#9C89B8',
+                            teal: '#B8E0D2',
+                            yellow: '#FFE5EC'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #FFF9FB;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FFF0F5;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #FF8FAB;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FB6F92;
+        }
+        .felt-card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(251, 111, 146, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-8px) rotate(1deg); }
+            100% { transform: translateY(0px) rotate(0deg); }
+        }
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
+        }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration & Global State
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'dehkade-namadiii-sara';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo-key",
+            authDomain: "demo.firebaseapp.com",
+            projectId: "demo-project",
+            storageBucket: "demo.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:123456"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.db = db;
+        window.appId = appId;
+        window.addDoc = addDoc;
+        window.collection = collection;
+        window.deleteDoc = deleteDoc;
+        window.doc = doc;
+
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                window.currentUser = auth.currentUser;
+                subscribePosts();
+            } catch (err) {
+                console.error("Auth error:", err);
+                renderPosts();
+            }
+        }
+
+        function subscribePosts() {
+            if (!auth.currentUser) return;
+            const postsCol = collection(db, 'artifacts', appId, 'public', 'data', 'posts');
+            
+            onSnapshot(postsCol, (snapshot) => {
+                const cloudPosts = [];
+                snapshot.forEach((doc) => {
+                    cloudPosts.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Merge cloud posts with initial static data
+                window.postsData = [...cloudPosts, ...initialPostsData];
+                document.getElementById('postCount').innerText = window.postsData.length;
+                renderPosts();
+            }, (error) => {
+                console.warn("Firestore listener warning:", error);
+                renderPosts();
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initAuth();
+        });
+    </script>
+</head>
+<body class="text-slate-800 antialiased selection:bg-pink-200 selection:text-pink-900 pb-12">
+
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-pink-100 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Info -->
+                <div class="flex items-center space-x-3 space-x-reverse cursor-pointer" onclick="filterCategory('all')">
+                    <div class="w-11 h-11 rounded-full p-0.5 bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 shadow-sm">
+                        <img src="https://picsum.photos/seed/sarafeltavatar/150/150" alt="دهکده نمدی سارا" class="w-full h-full object-cover rounded-full border-2 border-white">
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-slate-900 leading-tight">دهکده نمدی سارا</h1>
+                        <p class="text-xs text-pink-600 font-medium">dehkadenamadiii_sara@</p>
+                    </div>
+                </div>
+
+                <!-- Action buttons -->
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <!-- ADMIN UPLOAD BUTTON -->
+                    <button onclick="openAddPostModal()" class="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs px-3.5 py-2 rounded-full font-bold shadow-md hover:opacity-95 transition transform active:scale-95">
+                        <i class="fas fa-plus-circle text-sm"></i>
+                        <span>+ بارگذاری پست</span>
+                    </button>
+
+                    <a href="https://www.instagram.com/dehkadenamadiii_sara/" target="_blank" rel="noopener noreferrer" class="hidden md:inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs px-4 py-2 rounded-full font-medium shadow-sm hover:opacity-95 transition">
+                        <i class="fab fa-instagram text-sm"></i>
+                        <span>اینستاگرام</span>
+                    </a>
+                    
+                    <button onclick="openContactModal()" class="bg-pink-50 text-pink-600 hover:bg-pink-100 px-3.5 py-2 rounded-full text-xs font-semibold transition border border-pink-200">
+                        <i class="fas fa-paper-plane sm:ml-1"></i>
+                        <span class="hidden sm:inline">ثبت سفارش</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section class="relative bg-gradient-to-b from-pink-100/70 via-pink-50/50 to-transparent py-10 px-4 sm:px-6 overflow-hidden">
+        <div class="max-w-5xl mx-auto text-center relative z-10">
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white shadow-sm border border-pink-200 text-pink-600 text-xs font-semibold mb-4 animate-float">
+                <i class="fas fa-sparkles text-yellow-500"></i>
+                <span>کالکشن جدید دست‌سازه‌های نمدی بانو سارا</span>
+            </div>
+            
+            <h2 class="text-2xl sm:text-4xl font-black text-slate-900 mb-3 leading-snug">
+                ویترین آنلاین <span class="text-pink-600 underline decoration-wavy decoration-pink-300">عروسک‌ها، گیفت‌ها و آویزها</span>
+            </h2>
+            
+            <p class="text-slate-600 text-sm sm:text-base max-w-2xl mx-auto mb-6 leading-relaxed">
+                مجموعه‌ای اختصاصی از آویزهای اسم، ست سیسمونی، تم تولد، کوسن‌های فانتزی و گیفت‌های مناسبتی. پست‌های جدیدی که آپلود می‌کنید بلافاصله در صفحه اصلی نشان داده می‌شوند.
+            </p>
+
+            <!-- Instagram Stats Banner -->
+            <div class="inline-grid grid-cols-3 gap-4 sm:gap-8 bg-white/80 backdrop-blur-md border border-pink-100 rounded-2xl p-4 shadow-sm max-w-md w-full mb-6">
+                <div>
+                    <div class="text-base sm:text-xl font-bold text-slate-800" id="postCount">0</div>
+                    <div class="text-xs text-slate-500">پست‌ها</div>
+                </div>
+                <div>
+                    <div class="text-base sm:text-xl font-bold text-slate-800">12.8k</div>
+                    <div class="text-xs text-slate-500">دنبال‌کننده</div>
+                </div>
+                <div>
+                    <div class="text-base sm:text-xl font-bold text-slate-800">100٪</div>
+                    <div class="text-xs text-slate-500">دست‌سازه اصل</div>
+                </div>
+            </div>
+
+            <!-- Search & Filters Container -->
+            <div class="max-w-2xl mx-auto space-y-4">
+                <!-- Search Input -->
+                <div class="relative">
+                    <i class="fas fa-search absolute right-4 top-3.5 text-slate-400"></i>
+                    <input type="text" id="searchInput" oninput="handleSearch()" placeholder="جستجو در پست‌ها، آویز اسم، سیسمونی..." class="w-full pl-10 pr-11 py-3 text-sm rounded-full border border-pink-200 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent shadow-sm">
+                    <button onclick="clearSearch()" id="clearSearchBtn" class="hidden absolute left-3 top-3 text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </div>
+
+                <!-- Category Chips -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none justify-start sm:justify-center text-xs font-medium">
+                    <button onclick="filterCategory('all')" class="cat-btn active bg-pink-600 text-white px-4 py-2 rounded-full whitespace-nowrap shadow-sm transition" data-cat="all">همه پست‌ها</button>
+                    <button onclick="filterCategory('sismoni')" class="cat-btn bg-white text-slate-600 hover:bg-pink-50 border border-slate-200 px-4 py-2 rounded-full whitespace-nowrap transition" data-cat="sismoni">سیسمونی & آویز اسم</button>
+                    <button onclick="filterCategory('dolls')" class="cat-btn bg-white text-slate-600 hover:bg-pink-50 border border-slate-200 px-4 py-2 rounded-full whitespace-nowrap transition" data-cat="dolls">عروسک و دکوری</button>
+                    <button onclick="filterCategory('gifts')" class="cat-btn bg-white text-slate-600 hover:bg-pink-50 border border-slate-200 px-4 py-2 rounded-full whitespace-nowrap transition" data-cat="gifts">گیفت و مناسبتی</button>
+                    <button onclick="filterCategory('theme')" class="cat-btn bg-white text-slate-600 hover:bg-pink-50 border border-slate-200 px-4 py-2 rounded-full whitespace-nowrap transition" data-cat="theme">تم تولد & اکسسوری</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex justify-between items-center mb-6 border-b border-pink-100 pb-3">
+            <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2">
+                <i class="fas fa-th-large text-pink-500"></i>
+                <span>پست‌های ثبت شده پیج دهکده نمدی</span>
+            </h3>
+            <span class="text-xs text-slate-500" id="resultCounter">در حال بارگذاری...</span>
+        </div>
+
+        <!-- Posts Grid Container -->
+        <div id="postsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- Dynamic Post Cards loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16 bg-white rounded-3xl border border-dashed border-pink-200 my-6">
+            <div class="w-16 h-16 bg-pink-50 text-pink-400 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                <i class="fas fa-search"></i>
+            </div>
+            <h4 class="font-bold text-slate-700 mb-1">نتیجه‌ای یافت نشد!</h4>
+            <p class="text-xs text-slate-500">موردی با این مشخصات یافت نشد یا هنوز پستی بارگذاری نشده است.</p>
+        </div>
+    </main>
+
+    <div id="addPostModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-7 relative border border-pink-100 my-auto">
+            <button onclick="closeAddPostModal()" class="absolute top-4 left-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full flex items-center justify-center transition">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="flex items-center gap-2 mb-4 text-slate-900">
+                <div class="w-10 h-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-lg">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base sm:text-lg">بارگذاری پست جدید</h3>
+                    <p class="text-xs text-slate-500">پست جدید شما مستقیماً در صفحه اصلی قرار خواهد گرفت.</p>
+                </div>
+            </div>
+
+            <form onsubmit="handleCreatePost(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">عنوان پست / محصول *</label>
+                    <input type="text" id="postTitle" required placeholder="مثلا: آویز اسم نمدی طرح خرگوش و ماه" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">دسته‌بندی *</label>
+                        <select id="postCategory" class="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none bg-white">
+                            <option value="sismoni">سیسمونی & آویز اسم</option>
+                            <option value="dolls">عروسک و دکوری</option>
+                            <option value="gifts">گیفت و مناسبتی</option>
+                            <option value="theme">تم تولد & اکسسوری</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">نوع رسانه *</label>
+                        <select id="postType" onchange="toggleMediaTypeInput()" class="w-full px-3 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none bg-white">
+                            <option value="image">عکس / تصویر</option>
+                            <option value="video">ویدیو</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">آدرس عکس اصلی (URL) *</label>
+                    <input type="url" id="postImageUrl" required placeholder="https://example.com/photo.jpg" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none text-left" dir="ltr">
+                    <p class="text-[10px] text-slate-400 mt-1">می‌توانید از لینک عکس اینستاگرام یا آپلودکننده آنلاین مانند imgbb استفاده کنید.</p>
+                </div>
+
+                <div id="videoUrlContainer" class="hidden">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">آدرس ویدیو (MP4 URL)</label>
+                    <input type="url" id="postVideoUrl" placeholder="https://example.com/video.mp4" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none text-left" dir="ltr">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">قیمت (تومان)</label>
+                        <input type="text" id="postPrice" placeholder="مثلا: ۴۵۰,۰۰۰ تومان" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">هشتگ‌ها (با کاما جدا کنید)</label>
+                        <input type="text" id="postTags" placeholder="آویز_اسم, نمدی, سیسمونی" class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">توضیحات و کپشن پست *</label>
+                    <textarea id="postCaption" rows="3" required placeholder="توضیحات کامل محصول، نوع پارچه،ابعاد و ویژگی‌های دست‌سازه را بنویسید..." class="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-pink-400 focus:outline-none"></textarea>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" id="submitPostBtn" class="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-xs">
+                        <i class="fas fa-check-circle text-base"></i>
+                        <span>انتشار پست در صفحه اصلی</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="postModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-4xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden relative flex flex-col md:flex-row max-h-[92vh] my-auto border border-pink-100">
+            
+            <!-- Close Button -->
+            <button onclick="closeModal()" class="absolute top-3 left-3 z-20 w-9 h-9 bg-black/60 hover:bg-black text-white rounded-full flex items-center justify-center transition shadow-md">
+                <i class="fas fa-times text-base"></i>
+            </button>
+
+            <!-- Media Section (Left/Top) -->
+            <div class="md:w-3/5 bg-slate-950 relative flex items-center justify-center min-h-[280px] md:min-h-[480px]">
+                <div id="modalMediaContainer" class="w-full h-full flex items-center justify-center">
+                    <!-- Image or Video dynamically inserted -->
+                </div>
+                <div id="mediaTypeBadge" class="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full backdrop-blur-sm flex items-center gap-1">
+                    <i class="fas fa-camera"></i>
+                    <span>تصویر</span>
+                </div>
+            </div>
+
+            <!-- Details Section (Right/Bottom) -->
+            <div class="md:w-2/5 p-4 sm:p-6 flex flex-col justify-between bg-white overflow-y-auto">
+                <div>
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div class="flex items-center space-x-3 space-x-reverse">
+                            <img src="https://picsum.photos/seed/sarafeltavatar/150/150" alt="سارا" class="w-10 h-10 rounded-full border border-pink-300">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-900">dehkadenamadiii_sara</h4>
+                                <p class="text-xs text-pink-600" id="modalCategoryTag">دهکده نمدی سارا</p>
+                            </div>
+                        </div>
+                        <span id="modalDate" class="text-[11px] text-slate-400">امروز</span>
+                    </div>
+
+                    <!-- Post Caption -->
+                    <div class="py-4">
+                        <h3 id="modalTitle" class="font-bold text-base text-slate-800 mb-2">عنوان پست</h3>
+                        <p id="modalCaption" class="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line max-h-48 overflow-y-auto pl-1">
+                            توضیحات پست...
+                        </p>
+                        
+                        <!-- Tags -->
+                        <div id="modalTags" class="flex flex-wrap gap-1.5 mt-3">
+                            <!-- Tags go here -->
+                        </div>
+                    </div>
+
+                    <!-- Price Badge -->
+                    <div class="bg-pink-50 border border-pink-200 rounded-2xl p-3 mb-4 flex items-center justify-between">
+                        <span class="text-xs font-semibold text-pink-700">قیمت تقریبی / سفارش:</span>
+                        <span id="modalPrice" class="font-bold text-base text-pink-600">تماس بگیرید</span>
+                    </div>
+
+                    <!-- Comments Section -->
+                    <div class="border-t border-slate-100 pt-3">
+                        <h5 class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+                            <i class="far fa-comments"></i> نظرات خریداران
+                        </h5>
+                        <div id="modalComments" class="space-y-2 text-xs text-slate-600 max-h-28 overflow-y-auto">
+                            <!-- Comments go here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Actions & Order Button -->
+                <div class="pt-4 border-t border-slate-100 mt-4 space-y-2">
+                    <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+                        <div class="flex items-center gap-3">
+                            <button onclick="toggleLikeCurrentPost()" class="flex items-center gap-1 text-pink-600 font-medium hover:scale-105 transition">
+                                <i class="fas fa-heart text-pink-500"></i> <span id="modalLikes">۰</span>
+                            </button>
+                            <span class="flex items-center gap-1">
+                                <i class="fas fa-comment"></i> <span id="modalCommentCount">۰</span>
+                            </span>
+                        </div>
+                        <button onclick="sharePost()" class="text-slate-400 hover:text-slate-700 transition">
+                            <i class="fas fa-share-alt text-sm"></i>
+                        </button>
+                    </div>
+
+                    <button id="orderModalBtn" onclick="initiateOrderFromModal()" class="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm">
+                        <i class="fab fa-whatsapp text-lg"></i>
+                        <span>ثبت سفارش همین محصول</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="orderModal" class="fixed inset-0 z-50 hidden bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative border border-pink-100">
+            <button onclick="closeOrderModal()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+            
+            <h3 class="font-bold text-lg text-slate-900 mb-1 flex items-center gap-2">
+                <i class="fas fa-shopping-bag text-pink-500"></i>
+                <span>ثبت سفارش دست‌سازه نمدی</span>
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">فرم زیر را تکمیل کنید تا مستقیما در واتساپ یا دایرکت پیام ثبت سفارش ارسال شود.</p>
+
+            <form onsubmit="handleOrderSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">نام و نام خانوادگی *</label>
+                    <input type="text" id="orderName" required placeholder="مثلا: مریم رضایی" class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">شماره تماس (جهت هماهنگی) *</label>
+                    <input type="tel" id="orderPhone" required placeholder="۰۹۱۲..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none text-left" dir="ltr">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">محصول انتخابی</label>
+                    <input type="text" id="orderProduct" readonly class="w-full px-3 py-2 text-xs border border-pink-200 bg-pink-50/50 rounded-lg text-pink-700 font-medium">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">توضیحات اختصاصی (تغییر رنگ، نام کودک و...)</label>
+                    <textarea id="orderNotes" rows="3" placeholder="مثلا: اسم «آراد» روی آویز درج شود..." class="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button type="submit" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+                        <i class="fab fa-whatsapp text-base"></i>
+                        <span>ارسال در واتساپ</span>
+                    </button>
+                    <button type="button" onclick="sendViaInstagram()" class="flex-1 bg-gradient-to-r from-purple-600 to-pink-500 hover:opacity-95 text-white text-xs font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5">
+                        <i class="fab fa-instagram text-base"></i>
+                        <span>ارسال در دایرکت</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2 transition">
+        <i class="fas fa-info-circle text-pink-400"></i>
+        <span id="toastMessage">پیام سیستم</span>
+    </div>
+
+    <script>
+        // Initial sample posts data
+        const initialPostsData = [
+            {
+                id: 'static-1',
+                title: "آویز اسم نمدی تم حیوانات جنگل",
+                category: "sismoni",
+                categoryTitle: "سیسمونی & آویز اسم",
+                type: "image",
+                imageUrl: "https://picsum.photos/seed/feltjungle1/800/800",
+                likes: 342,
+                commentsCount: 28,
+                date: "۲ روز پیش",
+                price: "۴۵۰,۰۰۰ تومان",
+                caption: "🌱 آویز اسم نمدی طرح حیوانات شیرین جنگل 🦁🐘\nسفارشی برای آقا سام نازنین!\nتماماً برش خورده با دست و دوخت با نخ‌های باکیفیت و نمد درجه یک ضخیم.\nقابلیت تغییر اسم و ست کردن رنگ‌ها با روتختی کودک.",
+                tags: ["آویز_اسم", "نمدی", "سیسمونی_نوزاد", "تم_جنگل", "اتاق_کودک"],
+                comments: [
+                    { name: "مریم_ک", text: "چقدر ظریف و تمیز دوخته شده سارا جان😍" },
+                    { name: "فاطمه_احسانی", text: "قیمتش چنده برای اسم ۵ حرفی؟" }
+                ]
+            },
+            {
+                id: 'static-2',
+                title: "ست گیفت نمدی دندونی نوزاد",
+                category: "gifts",
+                categoryTitle: "گیفت و مناسبتی",
+                type: "video",
+                imageUrl: "https://picsum.photos/seed/feltbaby2/800/800",
+                videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-holding-a-small-handmade-item-41123-large.mp4",
+                likes: 512,
+                commentsCount: 45,
+                date: "۴ روز پیش",
+                price: "هر عدد ۴۵,۰۰۰ تومان",
+                caption: "🎥 ویدیو از نمای نزدیک گیفت‌های دندونی نمدی دخترانه و پسرانه 🦷✨\nهمراه با کارت یادبود و بسته‌بندی شیک.\nحداقل تعداد سفارش ۱۵ عدد می‌باشد.",
+                tags: ["گیفت_دندونی", "جشن_دندونی", "دست_سازه_نمدی"],
+                comments: [
+                    { name: "eli_nami", text: "ارسال به شهرستان هم دارید؟" }
+                ]
+            },
+            {
+                id: 'static-3',
+                title: "عروسک نمدی دخترک بالرین فانتزی",
+                category: "dolls",
+                categoryTitle: "عروسک و دکوری",
+                type: "image",
+                imageUrl: "https://picsum.photos/seed/feltdoll3/800/800",
+                likes: 289,
+                commentsCount: 19,
+                date: "۱ هفته پیش",
+                price: "۲۸۰,۰۰۰ تومان",
+                caption: "🩰 عروسک بالرین نمدی با دامن تور صورتی\nارتفاع حدود ۲۵ سانتی‌متر، مناسب برای آویز کیف، دکوراسیون اتاق یا هدیه به فرشته‌های کوچک.",
+                tags: ["عروسک_نمدی", "بالرین", "دست_ساز", "هدیه_خاص"],
+                comments: [
+                    { name: "nasrin_h", text: "خیلی ناز و کیوته واقعا" }
+                ]
+            },
+            {
+                id: 'static-4',
+                title: "تم کامل تولد نمدی طرح خرس و ابر",
+                category: "theme",
+                categoryTitle: "تم تولد & اکسسوری",
+                type: "image",
+                imageUrl: "https://picsum.photos/seed/feltbear4/800/800",
+                likes: 620,
+                commentsCount: 54,
+                date: "۱ هفته پیش",
+                price: "۱,۲۰۰,۰۰۰ تومان",
+                caption: "🐻☁️ ست ریسه، عدد تولد و تاپر کیک نمدی تم خرس خوابالو روی ابر\nمخصوص عکس‌های آتلیه‌ای و جشن یک‌سالگی کوچولوها.",
+                tags: ["تم_تولد_نمدی", "ریسه_نمدی", "تولد_یک_سالگی"],
+                comments: [
+                    { name: "mina_s", text: "برای تولد دو سالگی هم عدد ۲ می‌زنید؟" }
+                ]
+            }
+        ];
+
+        window.postsData = [...initialPostsData];
+        let activeCategory = 'all';
+        let searchQuery = '';
+        let currentPost = null;
+
+        const categoryTitles = {
+            sismoni: "سیسمونی & آویز اسم",
+            dolls: "عروسک و دکوری",
+            gifts: "گیفت و مناسبتی",
+            theme: "تم تولد & اکسسوری"
+        };
+
+        function renderPosts() {
+            const grid = document.getElementById('postsGrid');
+            const emptyState = document.getElementById('emptyState');
+            const counter = document.getElementById('resultCounter');
+            
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            const filtered = window.postsData.filter(post => {
+                const matchesCat = (activeCategory === 'all') || (post.category === activeCategory);
+                const matchesSearch = (post.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      (post.caption || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                      (post.tags && post.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
+                return matchesCat && matchesSearch;
+            });
+
+            counter.innerText = `نمایش ${filtered.length} از ${window.postsData.length} پست`;
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach(post => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl overflow-hidden border border-pink-100 felt-card-shadow hover:-translate-y-1.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between relative";
+                
+                card.innerHTML = `
+                    <div onclick="openModal('${post.id}')" class="relative aspect-square overflow-hidden bg-pink-50">
+                        <img src="${post.imageUrl || 'https://picsum.photos/800/800'}" alt="${post.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" onerror="this.src='https://placehold.co/600x600/FF8FAB/FFF?text=Felt+Craft'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3 text-white">
+                            <span class="text-xs font-semibold flex items-center gap-1"><i class="fas fa-eye text-pink-300"></i> مشاهده کامل</span>
+                        </div>
+                        ${post.type === 'video' ? `
+                            <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white w-7 h-7 rounded-full flex items-center justify-center text-xs">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        ` : ''}
+                        <div class="absolute top-3 right-3 bg-pink-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                            ${(post.categoryTitle || 'نمدی').split(' ')[0]}
+                        </div>
+                    </div>
+                    <div class="p-4 flex-1 flex flex-col justify-between" onclick="openModal('${post.id}')">
+                        <div>
+                            <h4 class="font-bold text-xs sm:text-sm text-slate-800 line-clamp-1 group-hover:text-pink-600 transition mb-1.5">${post.title}</h4>
+                            <p class="text-slate-500 text-[11px] line-clamp-2 leading-relaxed mb-3">${post.caption}</p>
+                        </div>
+                        <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                            <span class="font-bold text-pink-600">${post.price || 'تماس بگیرید'}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="flex items-center gap-0.5"><i class="fas fa-heart text-pink-400 text-[10px]"></i> ${post.likes || 0}</span>
+                                <span class="flex items-center gap-0.5"><i class="fas fa-comment text-slate-400 text-[10px]"></i> ${post.commentsCount || (post.comments ? post.comments.length : 0)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openAddPostModal() {
+            document.getElementById('addPostModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAddPostModal() {
+            document.getElementById('addPostModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        function toggleMediaTypeInput() {
+            const type = document.getElementById('postType').value;
+            const videoBox = document.getElementById('videoUrlContainer');
+            if (type === 'video') {
+                videoBox.classList.remove('hidden');
+            } else {
+                videoBox.classList.add('hidden');
+            }
+        }
+
+        async function handleCreatePost(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitPostBtn');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>در حال بارگذاری...</span>`;
+
+            const title = document.getElementById('postTitle').value.trim();
+            const category = document.getElementById('postCategory').value;
+            const type = document.getElementById('postType').value;
+            const imageUrl = document.getElementById('postImageUrl').value.trim();
+            const videoUrl = document.getElementById('postVideoUrl').value.trim();
+            const price = document.getElementById('postPrice').value.trim();
+            const rawTags = document.getElementById('postTags').value.trim();
+            const caption = document.getElementById('postCaption').value.trim();
+
+            const tags = rawTags ? rawTags.split(',').map(t => t.trim().replace(/^#/, '')) : ['دست_سازه_نمدی', 'دهکده_نمدی'];
+
+            const newPost = {
+                title,
+                category,
+                categoryTitle: categoryTitles[category] || "سازه‌های نمدی",
+                type,
+                imageUrl,
+                videoUrl: type === 'video' ? videoUrl : '',
+                likes: 1,
+                commentsCount: 0,
+                date: "همین الان",
+                price: price || "تماس بگیرید",
+                caption,
+                tags,
+                comments: [],
+                createdAt: Date.now()
+            };
+
+            try {
+                // Save to Firestore if available
+                if (window.db && window.currentUser) {
+                    const postsCol = window.collection(window.db, 'artifacts', window.appId, 'public', 'data', 'posts');
+                    await window.addDoc(postsCol, newPost);
+                } else {
+                    // Fallback to in-memory state
+                    newPost.id = 'custom-' + Date.now();
+                    window.postsData.unshift(newPost);
+                    renderPosts();
+                }
+
+                showToast('پست جدید با موفقیت در صفحه اصلی قرار گرفت! 🎉');
+                closeAddPostModal();
+
+                // Reset form
+                e.target.reset();
+                toggleMediaTypeInput();
+            } catch (err) {
+                console.error("Error creating post:", err);
+                showToast('خطا در ثبت پست. لطفاً مجدداً تلاش فرمایید.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-check-circle text-base"></i> <span>انتشار پست در صفحه اصلی</span>`;
+            }
+        }
+
+        function filterCategory(cat) {
+            activeCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if (btn.dataset.cat === cat) {
+                    btn.className = "cat-btn active bg-pink-600 text-white px-4 py-2 rounded-full whitespace-nowrap shadow-sm transition";
+                } else {
+                    btn.className = "cat-btn bg-white text-slate-600 hover:bg-pink-50 border border-slate-200 px-4 py-2 rounded-full whitespace-nowrap transition";
+                }
+            });
+            renderPosts();
+        }
+
+        function handleSearch() {
+            const input = document.getElementById('searchInput');
+            const clearBtn = document.getElementById('clearSearchBtn');
+            searchQuery = input.value.trim();
+            if (searchQuery.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            renderPosts();
+        }
+
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            searchQuery = '';
+            renderPosts();
+        }
+
+        function openModal(id) {
+            const post = window.postsData.find(p => String(p.id) === String(id));
+            if (!post) return;
+            currentPost = post;
+
+            const mediaContainer = document.getElementById('modalMediaContainer');
+            const mediaBadge = document.getElementById('mediaTypeBadge');
+
+            if (post.type === 'video' && post.videoUrl) {
+                mediaContainer.innerHTML = `
+                    <video controls autoplay loop class="max-h-[480px] w-full object-contain">
+                        <source src="${post.videoUrl}" type="video/mp4">
+                        مرورگر شما از ویدیو پشتیبانی نمیکند.
+                    </video>
+                `;
+                mediaBadge.innerHTML = `<i class="fas fa-video text-pink-400"></i> <span>ویدیو کلیپ</span>`;
+            } else {
+                mediaContainer.innerHTML = `
+                    <img src="${post.imageUrl || 'https://picsum.photos/800/800'}" alt="${post.title}" class="max-h-[480px] w-full object-contain" onerror="this.src='https://placehold.co/600x600/FF8FAB/FFF?text=Felt+Craft'">
+                `;
+                mediaBadge.innerHTML = `<i class="fas fa-camera text-pink-400"></i> <span>تصویر</span>`;
+            }
+
+            document.getElementById('modalCategoryTag').innerText = post.categoryTitle || 'دهکده نمدی سارا';
+            document.getElementById('modalDate').innerText = post.date || 'جدید';
+            document.getElementById('modalTitle').innerText = post.title;
+            document.getElementById('modalCaption').innerText = post.caption;
+            document.getElementById('modalPrice').innerText = post.price || 'تماس بگیرید';
+            document.getElementById('modalLikes').innerText = post.likes || 0;
+            document.getElementById('modalCommentCount').innerText = post.commentsCount || (post.comments ? post.comments.length : 0);
+
+            // Tags
+            const tagsContainer = document.getElementById('modalTags');
+            if (post.tags && post.tags.length > 0) {
+                tagsContainer.innerHTML = post.tags.map(t => `<span class="bg-pink-50 text-pink-600 text-[10px] px-2 py-0.5 rounded-md font-medium">#${t}</span>`).join('');
+            } else {
+                tagsContainer.innerHTML = '';
+            }
+
+            // Comments
+            const commentsContainer = document.getElementById('modalComments');
+            if (post.comments && post.comments.length > 0) {
+                commentsContainer.innerHTML = post.comments.map(c => `
+                    <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <span class="font-bold text-slate-800 ml-1">${c.name}:</span>
+                        <span>${c.text}</span>
+                    </div>
+                `).join('');
+            } else {
+                commentsContainer.innerHTML = `<p class="text-slate-400 text-[11px]">هنوز نظری ثبت نشده است.</p>`;
+            }
+
+            document.getElementById('postModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('postModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            document.getElementById('modalMediaContainer').innerHTML = '';
+        }
+
+        function toggleLikeCurrentPost() {
+            if (!currentPost) return;
+            currentPost.likes = (currentPost.likes || 0) + 1;
+            document.getElementById('modalLikes').innerText = currentPost.likes;
+            showToast('پست پسندیده شد! ❤️');
+            renderPosts();
+        }
+
+        function openContactModal() {
+            document.getElementById('orderProduct').value = "سفارش کلی / طرح دلخواه نمدی";
+            document.getElementById('orderModal').classList.remove('hidden');
+        }
+
+        function initiateOrderFromModal() {
+            if (!currentPost) return;
+            document.getElementById('orderProduct').value = currentPost.title;
+            document.getElementById('orderModal').classList.remove('hidden');
+        }
+
+        function closeOrderModal() {
+            document.getElementById('orderModal').classList.add('hidden');
+        }
+
+        function handleOrderSubmit(e) {
+            e.preventDefault();
+            const name = document.getElementById('orderName').value;
+            const phone = document.getElementById('orderPhone').value;
+            const product = document.getElementById('orderProduct').value;
+            const notes = document.getElementById('orderNotes').value;
+
+            const text = `سلام سارا بانو، وقت بخیر🌸%0Aمن از طریق سایت سفارش دارم:%0A👤 نام: ${encodeURIComponent(name)}%0A📞 تلفن: ${encodeURIComponent(phone)}%0A🛍️ محصول: ${encodeURIComponent(product)}%0A📝 توضیحات: ${encodeURIComponent(notes || 'ندارد')}`;
+            
+            window.open(`https://wa.me/989120000000?text=${text}`, '_blank');
+            closeOrderModal();
+            showToast('در حال انتقال به واتساپ برای نهایی‌سازی سفارش...');
+        }
+
+        function sendViaInstagram() {
+            window.open('https://www.instagram.com/dehkadenamadiii_sara/', '_blank');
+            closeOrderModal();
+            showToast('لطفا پیام خود را در دایرکت اینستاگرام ارسال فرمایید.');
+        }
+
+        function sharePost() {
+            if (navigator.share && currentPost) {
+                navigator.share({
+                    title: currentPost.title,
+                    text: currentPost.caption,
+                    url: window.location.href,
+                }).catch(() => {});
+            } else {
+                document.execCommand('copy');
+                showToast('لینک صفحه با موفقیت کپی شد!');
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3500);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeOrderModal();
+                closeAddPostModal();
+            }
+        });
+    </script>
+</body>
+</html>
